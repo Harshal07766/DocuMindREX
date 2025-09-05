@@ -62,21 +62,22 @@ def create_app():
         from fastapi.responses import Response
         return Response(content="", media_type="image/x-icon")
     
-    # Basic API endpoints
-    @app.get("/api/")
-    async def api_root():
-        return {
-            "message": "DocuMind AI API",
-            "status": "running",
-            "mode": "minimal",
-            "endpoints": {
-                "health": "/api/health",
-                "test": "/api/test",
-                "upload": "/api/upload",
-                "query": "/api/query"
-            }
-        }
+    # Mount frontend FIRST (before any API endpoints)
+    try:
+        app.mount("/api", StaticFiles(directory="frontend", html=True), name="frontend")
+        print("✅ Frontend mounted successfully")
+    except Exception as e:
+        print(f"⚠️ Warning: Could not mount frontend: {e}")
+        # Add a fallback frontend endpoint
+        @app.get("/api/")
+        async def fallback_frontend():
+            try:
+                with open("frontend/index.html", "r", encoding="utf-8") as f:
+                    return HTMLResponse(content=f.read())
+            except FileNotFoundError:
+                return HTMLResponse(content="<h1>Frontend not found</h1>", status_code=404)
     
+    # Basic API endpoints (after frontend mounting)
     @app.get("/api/health")
     async def api_health():
         return {
@@ -109,21 +110,6 @@ def create_app():
             "status": "minimal_mode",
             "note": "Full query functionality requires API keys and vector database configuration"
         }
-    
-    # Mount frontend
-    try:
-        app.mount("/api", StaticFiles(directory="frontend", html=True), name="frontend")
-        print("✅ Frontend mounted successfully")
-    except Exception as e:
-        print(f"⚠️ Warning: Could not mount frontend: {e}")
-        # Add a fallback frontend endpoint
-        @app.get("/api/")
-        async def fallback_frontend():
-            try:
-                with open("frontend/index.html", "r", encoding="utf-8") as f:
-                    return HTMLResponse(content=f.read())
-            except FileNotFoundError:
-                return HTMLResponse(content="<h1>Frontend not found</h1>", status_code=404)
     
     return app
 
