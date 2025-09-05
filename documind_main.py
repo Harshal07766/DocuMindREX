@@ -62,20 +62,37 @@ def create_app():
         from fastapi.responses import Response
         return Response(content="", media_type="image/x-icon")
     
-    # Mount frontend FIRST (before any API endpoints)
-    try:
-        app.mount("/api", StaticFiles(directory="frontend", html=True), name="frontend")
-        print("✅ Frontend mounted successfully")
-    except Exception as e:
-        print(f"⚠️ Warning: Could not mount frontend: {e}")
-        # Add a fallback frontend endpoint
-        @app.get("/api/")
-        async def fallback_frontend():
-            try:
-                with open("frontend/index.html", "r", encoding="utf-8") as f:
-                    return HTMLResponse(content=f.read())
-            except FileNotFoundError:
-                return HTMLResponse(content="<h1>Frontend not found</h1>", status_code=404)
+    # Serve frontend directly through endpoint
+    @app.get("/api/")
+    async def serve_frontend():
+        try:
+            print("🔍 Attempting to read frontend/index.html...")
+            with open("frontend/index.html", "r", encoding="utf-8") as f:
+                content = f.read()
+                print(f"✅ Frontend file read successfully, length: {len(content)} characters")
+                return HTMLResponse(content=content)
+        except FileNotFoundError as e:
+            print(f"❌ Frontend file not found: {e}")
+            return HTMLResponse(content="<h1>Frontend not found</h1><p>File: frontend/index.html</p>", status_code=404)
+        except Exception as e:
+            print(f"❌ Error reading frontend: {e}")
+            return HTMLResponse(content=f"<h1>Frontend Error</h1><p>Error: {str(e)}</p>", status_code=500)
+    
+    # Also serve frontend at root /api path
+    @app.get("/api")
+    async def serve_frontend_root():
+        try:
+            print("🔍 Attempting to read frontend/index.html from /api...")
+            with open("frontend/index.html", "r", encoding="utf-8") as f:
+                content = f.read()
+                print(f"✅ Frontend file read successfully from /api, length: {len(content)} characters")
+                return HTMLResponse(content=content)
+        except FileNotFoundError as e:
+            print(f"❌ Frontend file not found from /api: {e}")
+            return HTMLResponse(content="<h1>Frontend not found</h1><p>File: frontend/index.html</p>", status_code=404)
+        except Exception as e:
+            print(f"❌ Error reading frontend from /api: {e}")
+            return HTMLResponse(content=f"<h1>Frontend Error</h1><p>Error: {str(e)}</p>", status_code=500)
     
     # Basic API endpoints (after frontend mounting)
     @app.get("/api/health")
