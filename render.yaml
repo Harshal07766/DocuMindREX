@@ -8,7 +8,7 @@ services:
       pip install --upgrade pip
       pip uninstall pinecone-client pinecone -y || true
       pip cache purge
-      pip install -r requirements-minimal.txt
+      pip install -r requirements.txt
     startCommand: python minimal_main.py
     healthCheckPath: /health
     envVars:
