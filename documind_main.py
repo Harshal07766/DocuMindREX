@@ -34,8 +34,7 @@ def create_app():
     )
     
     # Root endpoint - redirect to frontend
-    @app.get("/")
-    @app.head("/")
+    @app.api_route("/", methods=["GET", "HEAD"])
     async def root():
         from fastapi.responses import RedirectResponse
         return RedirectResponse(url="/api/")
@@ -58,8 +57,7 @@ def create_app():
         return Response(content="", media_type="image/x-icon")
     
     # Serve frontend directly through endpoint
-    @app.get("/api/")
-    @app.head("/api/")
+    @app.api_route("/api/", methods=["GET", "HEAD"])
     async def serve_frontend():
         try:
             print("🔍 Attempting to read frontend/index.html...")
@@ -75,8 +73,7 @@ def create_app():
             return HTMLResponse(content=f"<h1>Frontend Error</h1><p>Error: {str(e)}</p>", status_code=500)
     
     # Also serve frontend at root /api path
-    @app.get("/api")
-    @app.head("/api")
+    @app.api_route("/api", methods=["GET", "HEAD"])
     async def serve_frontend_root():
         try:
             print("🔍 Attempting to read frontend/index.html from /api...")
@@ -108,6 +105,29 @@ def create_app():
             "mode": "minimal",
             "note": "Running in minimal mode - full services require API keys and proper package installation"
         }
+    
+    @app.get("/api/debug")
+    async def debug_endpoint():
+        import os
+        try:
+            # Check if frontend directory exists
+            frontend_exists = os.path.exists("frontend")
+            index_exists = os.path.exists("frontend/index.html")
+            
+            # Get file size if it exists
+            file_size = 0
+            if index_exists:
+                file_size = os.path.getsize("frontend/index.html")
+            
+            return {
+                "frontend_directory_exists": frontend_exists,
+                "index_html_exists": index_exists,
+                "file_size_bytes": file_size,
+                "current_directory": os.getcwd(),
+                "directory_contents": os.listdir(".") if os.path.exists(".") else "Directory not found"
+            }
+        except Exception as e:
+            return {"error": str(e)}
     
     @app.post("/api/upload")
     async def upload_endpoint():
