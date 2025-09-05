@@ -33,17 +33,12 @@ def create_app():
         allow_headers=["*"],
     )
     
-    # Root endpoint
+    # Root endpoint - redirect to frontend
     @app.get("/")
+    @app.head("/")
     async def root():
-        return {
-            "message": "DocuMind AI - Advanced Document Intelligence System",
-            "frontend": "/api/",
-            "docs": "/docs",
-            "health": "/health",
-            "status": "running",
-            "mode": "minimal"
-        }
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(url="/api/")
     
     # Health check endpoint
     @app.get("/health")
@@ -64,6 +59,7 @@ def create_app():
     
     # Serve frontend directly through endpoint
     @app.get("/api/")
+    @app.head("/api/")
     async def serve_frontend():
         try:
             print("🔍 Attempting to read frontend/index.html...")
@@ -80,6 +76,7 @@ def create_app():
     
     # Also serve frontend at root /api path
     @app.get("/api")
+    @app.head("/api")
     async def serve_frontend_root():
         try:
             print("🔍 Attempting to read frontend/index.html from /api...")
