@@ -10,7 +10,7 @@ services:
       pip uninstall pinecone-client pinecone -y || true
       pip cache purge
       pip install -r requirements.txt
-    startCommand: python test_main.py
+    startCommand: python documind_main.py
     healthCheckPath: /health
     envVars:
       - key: VECTOR_DB_PROVIDER
