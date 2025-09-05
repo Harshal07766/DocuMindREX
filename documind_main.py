@@ -33,14 +33,42 @@ def create_app():
         allow_headers=["*"],
     )
     
-    # Root endpoint - serve frontend directly
+    # Root endpoint - serve React app
     @app.api_route("/", methods=["GET", "HEAD"])
     async def root():
         try:
-            with open("frontend/index.html", "r", encoding="utf-8") as f:
+            with open("frontend/build/index.html", "r", encoding="utf-8") as f:
                 return HTMLResponse(content=f.read())
         except FileNotFoundError:
-            return HTMLResponse(content="<h1>Frontend not found</h1><p>File: frontend/index.html</p>", status_code=404)
+            # Fallback to development mode
+            return HTMLResponse(content="""
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DocuMind AI - Document Intelligence</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); margin: 0; padding: 20px; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 15px; text-align: center; }
+        h1 { color: #2c3e50; margin-bottom: 20px; }
+        .info { background: #e8f4f8; padding: 20px; border-radius: 10px; margin: 20px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧠 DocuMind AI</h1>
+        <div class="info">
+            <h3>React Frontend Not Built</h3>
+            <p>To enable the React frontend, run:</p>
+            <code>cd frontend && npm install && npm run build</code>
+            <p>Then redeploy the application.</p>
+        </div>
+        <p><a href="/api/">Go to API endpoints</a></p>
+    </div>
+</body>
+</html>
+            """)
         except Exception as e:
             return HTMLResponse(content=f"<h1>Error loading frontend</h1><p>{str(e)}</p>", status_code=500)
     
@@ -77,21 +105,28 @@ def create_app():
             print(f"❌ Error serving frontend: {e}")
             return HTMLResponse(content=f"<h1>Error loading frontend</h1><p>{str(e)}</p>", status_code=500)
     
-    # Also serve frontend at /api path
-    @app.api_route("/api", methods=["GET", "HEAD"])
-    async def serve_frontend_root():
-        try:
-            print("🔍 Serving frontend/index.html from /api...")
-            with open("frontend/index.html", "r", encoding="utf-8") as f:
-                content = f.read()
-                print(f"✅ Frontend file served from /api successfully, length: {len(content)} characters")
-                return HTMLResponse(content=content)
-        except FileNotFoundError as e:
-            print(f"❌ Frontend file not found from /api: {e}")
-            return HTMLResponse(content="<h1>Frontend not found</h1><p>File: frontend/index.html</p>", status_code=404)
-        except Exception as e:
-            print(f"❌ Error serving frontend from /api: {e}")
-            return HTMLResponse(content=f"<h1>Error loading frontend</h1><p>{str(e)}</p>", status_code=500)
+    # Serve React build assets
+    try:
+        from fastapi.staticfiles import StaticFiles
+        app.mount("/static", StaticFiles(directory="frontend/build/static"), name="static")
+        print("✅ React static assets mounted")
+    except Exception as e:
+        print(f"⚠️ Could not mount React static assets: {e}")
+
+    # API endpoint for testing
+    @app.get("/api")
+    async def api_info():
+        return {
+            "message": "DocuMind AI API",
+            "status": "running",
+            "frontend": "React app at root URL",
+            "endpoints": {
+                "health": "/health",
+                "test": "/api/test",
+                "upload": "/api/upload",
+                "query": "/api/query"
+            }
+        }
     
     # Basic API endpoints (after frontend mounting)
     @app.get("/api/health")
