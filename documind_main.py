@@ -404,8 +404,8 @@ def create_app():
             "mode": "minimal"
         }
     
-        @app.get("/api/test")
-        async def test_endpoint():
+    @app.get("/api/test")
+    async def test_endpoint():
         return {
             "message": "DocuMind AI is working!",
             "status": "success",
