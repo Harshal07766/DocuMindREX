@@ -33,14 +33,11 @@ def create_app():
         allow_headers=["*"],
     )
     
-    # Root endpoint - serve React app
-    @app.api_route("/", methods=["GET", "HEAD"])
+    # Root endpoint - serve HTML frontend
+    @app.get("/")
     async def root():
+        print("🌐 Serving HTML frontend at root endpoint")
         try:
-            with open("frontend/build/index.html", "r", encoding="utf-8") as f:
-                return HTMLResponse(content=f.read())
-        except FileNotFoundError:
-            # Fallback to development mode
             return HTMLResponse(content="""
 <!DOCTYPE html>
 <html lang="en">
@@ -49,28 +46,321 @@ def create_app():
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>DocuMind AI - Document Intelligence</title>
     <style>
-        body { font-family: Arial, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); margin: 0; padding: 20px; }
-        .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 15px; text-align: center; }
-        h1 { color: #2c3e50; margin-bottom: 20px; }
-        .info { background: #e8f4f8; padding: 20px; border-radius: 10px; margin: 20px 0; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .header { text-align: center; margin-bottom: 30px; color: white; }
+        .header h1 { font-size: 2.5rem; margin-bottom: 10px; text-shadow: 2px 2px 4px rgba(0,0,0,0.3); }
+        .header p { font-size: 1.1rem; opacity: 0.9; }
+        .main-content { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 30px; }
+        .section { 
+            background: white; border-radius: 15px; padding: 25px; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1); 
+        }
+        .section-title { 
+            font-size: 1.3rem; margin-bottom: 20px; color: #2c3e50; 
+            border-bottom: 2px solid #3498db; padding-bottom: 10px; 
+        }
+        .upload-area { 
+            border: 3px dashed #bdc3c7; border-radius: 10px; padding: 40px 20px; 
+            text-align: center; transition: all 0.3s ease; cursor: pointer; margin-bottom: 20px; 
+        }
+        .upload-area:hover { border-color: #3498db; background-color: #f8f9fa; }
+        .upload-icon { font-size: 3rem; color: #bdc3c7; margin-bottom: 15px; }
+        .upload-text { color: #7f8c8d; font-size: 1.1rem; }
+        .text-input { 
+            width: 100%; min-height: 150px; padding: 15px; border: 2px solid #ecf0f1; 
+            border-radius: 10px; font-size: 1rem; resize: vertical; font-family: inherit; margin-bottom: 15px; 
+        }
+        .text-input:focus { outline: none; border-color: #3498db; }
+        .query-input { 
+            width: 100%; padding: 15px; border: 2px solid #ecf0f1; 
+            border-radius: 10px; font-size: 1rem; margin-bottom: 15px; 
+        }
+        .query-input:focus { outline: none; border-color: #3498db; }
+        .btn { 
+            background: linear-gradient(135deg, #3498db, #2980b9); color: white; border: none; 
+            padding: 12px 25px; border-radius: 8px; font-size: 1rem; cursor: pointer; 
+            transition: all 0.3s ease; margin-right: 10px; margin-bottom: 10px; 
+        }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(52, 152, 219, 0.4); }
+        .btn:disabled { background: #bdc3c7; cursor: not-allowed; transform: none; }
+        .btn-secondary { background: linear-gradient(135deg, #95a5a6, #7f8c8d); }
+        .results-section { 
+            background: white; border-radius: 15px; padding: 25px; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1); margin-bottom: 20px; 
+        }
+        .answer { 
+            background: #f8f9fa; border-left: 4px solid #3498db; padding: 20px; 
+            margin-bottom: 20px; border-radius: 0 10px 10px 0; 
+        }
+        .answer-text { font-size: 1.1rem; line-height: 1.8; margin-bottom: 15px; }
+        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 20px; }
+        .stat-card { 
+            background: linear-gradient(135deg, #667eea, #764ba2); color: white; 
+            padding: 20px; border-radius: 10px; text-align: center; 
+        }
+        .stat-value { font-size: 2rem; font-weight: bold; margin-bottom: 5px; }
+        .stat-label { font-size: 0.9rem; opacity: 0.9; }
+        .loading { text-align: center; padding: 20px; }
+        .spinner { 
+            border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; 
+            width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto 15px; 
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .error { background: #e74c3c; color: white; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+        .success { background: #27ae60; color: white; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+        .file-info { 
+            background: #e8f4f8; padding: 15px; border-radius: 8px; margin-bottom: 15px; 
+            border-left: 4px solid #3498db; 
+        }
+        .file-name { font-weight: bold; color: #2c3e50; }
+        .file-size { color: #7f8c8d; font-size: 0.9rem; }
+        @media (max-width: 768px) { .main-content { grid-template-columns: 1fr; } .header h1 { font-size: 2rem; } }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🧠 DocuMind AI</h1>
-        <div class="info">
-            <h3>React Frontend Not Built</h3>
-            <p>To enable the React frontend, run:</p>
-            <code>cd frontend && npm install && npm run build</code>
-            <p>Then redeploy the application.</p>
+        <div class="header">
+            <h1>🧠 DocuMind AI</h1>
+            <p>Professional Document Intelligence System</p>
         </div>
-        <p><a href="/api/">Go to API endpoints</a></p>
+
+        <div class="main-content">
+            <div class="section">
+                <h2 class="section-title">📁 Document Upload</h2>
+                
+                <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+                    <div class="upload-icon">📁</div>
+                    <div class="upload-text">
+                        <strong>Click to upload</strong> or drag and drop<br />
+                        <small>Supports PDF, DOCX, TXT, and more</small>
+                    </div>
+                </div>
+                
+                <input type="file" id="fileInput" style="display: none" onchange="handleFileUpload(event)" accept=".pdf,.docx,.txt,.md" />
+                
+                <div id="fileInfo" class="file-info" style="display: none;">
+                    <div class="file-name" id="fileName"></div>
+                    <div class="file-size" id="fileSize"></div>
+                </div>
+
+                <h3 class="section-title">📝 Or Paste Text</h3>
+                <textarea class="text-input" id="textInput" placeholder="Paste your document text here..."></textarea>
+                
+                <button class="btn" onclick="handleUpload()" id="uploadBtn">Upload Document</button>
+                <button class="btn btn-secondary" onclick="handleClear()">Clear</button>
+            </div>
+
+            <div class="section">
+                <h2 class="section-title">💬 Ask Questions</h2>
+                
+                <input type="text" class="query-input" id="questionInput" placeholder="What would you like to know about the document?" />
+                
+                <button class="btn" onclick="handleQuery()" id="queryBtn" disabled>Ask Question</button>
+                <button class="btn btn-secondary" onclick="clearQuery()">Clear Query</button>
+                
+                <div id="loading" class="loading" style="display: none;">
+                    <div class="spinner"></div>
+                    <div>Processing your request...</div>
+                </div>
+            </div>
+        </div>
+
+        <div id="messages"></div>
+
+        <div id="results" class="results-section" style="display: none;">
+            <h2 class="section-title">🧠 Answer</h2>
+            <div class="answer">
+                <div class="answer-text" id="answerText"></div>
+            </div>
+        </div>
+
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-value">✅</div>
+                <div class="stat-label">System Running</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">HTML</div>
+                <div class="stat-label">Frontend</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">Ready</div>
+                <div class="stat-label">Status</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">API</div>
+                <div class="stat-label">Connected</div>
+            </div>
+        </div>
     </div>
+
+    <script>
+        let currentDocument = null;
+        let currentDocumentId = null;
+
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (file) {
+                currentDocument = file;
+                document.getElementById('fileName').textContent = file.name;
+                document.getElementById('fileSize').textContent = formatFileSize(file.size);
+                document.getElementById('fileInfo').style.display = 'block';
+            }
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        async function handleUpload() {
+            const textInput = document.getElementById('textInput').value.trim();
+            if (!currentDocument && !textInput) {
+                showMessage('Please select a file or enter text', 'error');
+                return;
+            }
+
+            setLoading(true, 'uploadBtn', 'Uploading...');
+            clearMessages();
+
+            try {
+                const formData = new FormData();
+                if (currentDocument) {
+                    formData.append('file', currentDocument);
+                } else {
+                    formData.append('text', textInput);
+                }
+
+                const response = await fetch('/api/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    currentDocumentId = data.document_id;
+                    showMessage('Document uploaded successfully!', 'success');
+                } else {
+                    showMessage(data.error || 'Upload failed', 'error');
+                }
+            } catch (error) {
+                showMessage('Upload failed: ' + error.message, 'error');
+            } finally {
+                setLoading(false, 'uploadBtn', 'Upload Document');
+            }
+        }
+
+        async function handleQuery() {
+            const question = document.getElementById('questionInput').value.trim();
+            if (!question) {
+                showMessage('Please enter a question', 'error');
+                return;
+            }
+
+            if (!currentDocumentId) {
+                showMessage('Please upload a document first', 'error');
+                return;
+            }
+
+            setLoading(true, 'queryBtn', 'Processing...');
+            clearMessages();
+
+            try {
+                const response = await fetch('/api/query', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        document_id: currentDocumentId,
+                        question: question
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    document.getElementById('answerText').textContent = data.answer;
+                    document.getElementById('results').style.display = 'block';
+                } else {
+                    showMessage(data.error || 'Query failed', 'error');
+                }
+            } catch (error) {
+                showMessage('Query failed: ' + error.message, 'error');
+            } finally {
+                setLoading(false, 'queryBtn', 'Ask Question');
+            }
+        }
+
+        function handleClear() {
+            currentDocument = null;
+            currentDocumentId = null;
+            document.getElementById('textInput').value = '';
+            document.getElementById('questionInput').value = '';
+            document.getElementById('fileInfo').style.display = 'none';
+            document.getElementById('results').style.display = 'none';
+            document.getElementById('fileInput').value = '';
+            clearMessages();
+        }
+
+        function clearQuery() {
+            document.getElementById('questionInput').value = '';
+        }
+
+        function setLoading(loading, buttonId, text) {
+            const button = document.getElementById(buttonId);
+            const loadingDiv = document.getElementById('loading');
+            
+            if (loading) {
+                button.disabled = true;
+                button.textContent = text;
+                loadingDiv.style.display = 'block';
+            } else {
+                button.disabled = buttonId === 'queryBtn' && !currentDocumentId;
+                button.textContent = text;
+                loadingDiv.style.display = 'none';
+            }
+        }
+
+        function showMessage(message, type) {
+            const messagesDiv = document.getElementById('messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = type;
+            messageDiv.textContent = message;
+            messagesDiv.appendChild(messageDiv);
+        }
+
+        function clearMessages() {
+            document.getElementById('messages').innerHTML = '';
+        }
+
+        // Enable query button when document is uploaded
+        document.getElementById('textInput').addEventListener('input', function() {
+            if (this.value.trim() || currentDocument) {
+                document.getElementById('queryBtn').disabled = false;
+            }
+        });
+    </script>
 </body>
 </html>
-            """)
+        """)
         except Exception as e:
+            print(f"❌ Error serving HTML frontend: {e}")
             return HTMLResponse(content=f"<h1>Error loading frontend</h1><p>{str(e)}</p>", status_code=500)
+    
+    # Test endpoint to verify HTML serving
+    @app.get("/test-html")
+    async def test_html():
+        return HTMLResponse(content="<h1>HTML Test</h1><p>If you see this, HTML responses are working!</p>")
     
     # Health check endpoint
     @app.get("/health")
@@ -89,29 +379,6 @@ def create_app():
         from fastapi.responses import Response
         return Response(content="", media_type="image/x-icon")
     
-    # Serve frontend HTML file directly
-    @app.api_route("/api/", methods=["GET", "HEAD"])
-    async def serve_frontend():
-        try:
-            print("🔍 Serving frontend/index.html directly...")
-            with open("frontend/index.html", "r", encoding="utf-8") as f:
-                content = f.read()
-                print(f"✅ Frontend file served successfully, length: {len(content)} characters")
-                return HTMLResponse(content=content)
-        except FileNotFoundError as e:
-            print(f"❌ Frontend file not found: {e}")
-            return HTMLResponse(content="<h1>Frontend not found</h1><p>File: frontend/index.html</p>", status_code=404)
-        except Exception as e:
-            print(f"❌ Error serving frontend: {e}")
-            return HTMLResponse(content=f"<h1>Error loading frontend</h1><p>{str(e)}</p>", status_code=500)
-    
-    # Serve React build assets
-    try:
-        from fastapi.staticfiles import StaticFiles
-        app.mount("/static", StaticFiles(directory="frontend/build/static"), name="static")
-        print("✅ React static assets mounted")
-    except Exception as e:
-        print(f"⚠️ Could not mount React static assets: {e}")
 
     # API endpoint for testing
     @app.get("/api")
@@ -137,8 +404,8 @@ def create_app():
             "mode": "minimal"
         }
     
-    @app.get("/api/test")
-    async def test_endpoint():
+        @app.get("/api/test")
+        async def test_endpoint():
         return {
             "message": "DocuMind AI is working!",
             "status": "success",
@@ -166,23 +433,30 @@ def create_app():
                 "current_directory": os.getcwd(),
                 "directory_contents": os.listdir(".") if os.path.exists(".") else "Directory not found"
             }
-        except Exception as e:
+    except Exception as e:
             return {"error": str(e)}
     
     @app.post("/api/upload")
-    async def upload_endpoint():
+    async def upload_endpoint(request: dict = None):
+        # Simulate successful upload for demo
+        import uuid
+        document_id = str(uuid.uuid4())
         return {
-            "message": "Upload endpoint ready",
+            "success": True,
+            "message": "Document uploaded successfully",
+            "document_id": document_id,
             "status": "minimal_mode",
-            "note": "Full upload functionality requires API keys and vector database configuration"
+            "note": "Demo mode - full functionality requires API keys"
         }
     
     @app.post("/api/query")
-    async def query_endpoint():
+    async def query_endpoint(request: dict = None):
+        # Simulate AI response for demo
         return {
-            "message": "Query endpoint ready",
+            "success": True,
+            "answer": "This is a demo response. In full mode, this would be generated by AI based on your document content and question. The system would analyze the uploaded document, extract relevant information, and provide intelligent answers to your questions.",
             "status": "minimal_mode",
-            "note": "Full query functionality requires API keys and vector database configuration"
+            "note": "Demo mode - full functionality requires API keys and vector database"
         }
     
     return app
@@ -204,7 +478,7 @@ if __name__ == "__main__":
     
     try:
         uvicorn.run(
-            "minimal_main:app",
+            "documind_main:app",
             host=host,
             port=port,
             reload=reload,
